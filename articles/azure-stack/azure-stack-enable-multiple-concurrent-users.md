@@ -52,7 +52,7 @@ The username is the local administrator account and the password is the same as 
 
 This step explains how to configure a point to site VPN connection into the Azure Stack POC. This VPN connection will use the Layer Two Tunneling Protocol (L2TP) over IPSec. The script will configure the VPN to use addresses 192.168.200.200 to 192.168.200.230 on the Transit network within the Azure Stack POC.
 
-1.  On the NATVM, run the following script in PowerShell. Replace \<SharedKey\> with the shared key you wish to use for this connection.
+On the NATVM, run the following script in PowerShell. Replace `<SharedSecret>` with the shared key you wish to use for this connection.
 
 		Install-RemoteAccess –RoleType vpn –Legacy –IPAddressRange 192.168.200.201,192.168.200.230
 		Install-RemoteAccess –RoleType vpnS2S –Legacy
@@ -60,6 +60,7 @@ This step explains how to configure a point to site VPN connection into the Azur
 		net start remoteaccess
 		Set-VpnAuthProtocol –TunnelAuthProtocolsAdvertised PreSharedKey –SharedSecret <SharedKey>
 		Netsh ras set type ipv4rtrtype = lananddd ipv6rtrtype = none rastype = ipv4
+		netsh ras set wanports device="WAN Miniport (L2TP)" maxports=10
 		net stop remoteaccess
 		net start remoteaccess
 		$internalNic = Get-NetIPConfiguration | ? { [string]$_.IPv4Address -eq "192.168.200.1" }
@@ -73,12 +74,7 @@ This step explains how to configure a point to site VPN connection into the Azur
 		Write-host "VM external IP is $externalNicIp"
 
 	>[AZURE.NOTE] These commands produce some output including **The following helper DLL cannot be loaded: WCNNETSH.DLL.** You may ignore this.
-
-2.  For the VPN users, you must set up a local user account on the NATVM. Open **Control Panel**, click **User Accounts,** click **User Accounts,** click **User Accounts** again**,** click **Manage another account**, and then click **Add a user account**.
-
-  **Important**: You may have to add additional accounts to increase the amount of concurrent users.
-
-	![](media/azure-stack-enable-multiple-concurrent-users/image1.png)
+	>[AZURE.NOTE] These commands allow 10 concurrent VPN connections. If you want more, you may modify **maxports**. You also need allocate more system resource to NATVM if you want to have more VPN connections.
 
   Before exiting the NATVM, take note of the VM external IP address outputted by the script. This is the address you will use to connect via VPN.
 
@@ -91,7 +87,7 @@ On the Azure Stack POC host, execute the following cmdlets in PowerShell:
 	Export-Certificate -Cert $cert -FilePath c:\CA.cer
 
 
-This exports the Azure Stack certificate to the C:/ drive. Copy it from this location onto your client.
+This exports the Azure Stack certificate to the C:\ drive. Copy it from this location onto your client.
 
 ### Configure the clients
 
@@ -101,9 +97,9 @@ You can configure Windows and Mac machines to connect to the Microsoft Azure Sta
 
 1.  Copy the Microsoft Azure Stack certificate onto your client machine.
 
-2.  Execute the following command in PowerShell. This command will import the Microsoft Azure Stack certificate into your root store. Replace “\<PathToCert\>” with the path to your certificate.
+2.  Execute the following command in PowerShell. This command will import the Microsoft Azure Stack certificate into your root store. Replace `<PathToCert>` with the path to your certificate.
 
-		Get-ChildItem -Path <PathToCert>| Import-Certificate -CertStoreLocation cert:\CurrentUser\Root
+		Get-ChildItem -Path <PathToCert> | Import-Certificate -CertStoreLocation cert:\CurrentUser\Root
 
 3.  To create the VPN connection without using split-tunneling, enter the following command in PowerShell as an Administrator. Replace `<SharedSecret>` and `<NATVMAddress>` with the shared secret you chose earlier and the IP address of the NATVM.
 
@@ -115,7 +111,7 @@ You can configure Windows and Mac machines to connect to the Microsoft Azure Sta
 		Add-VpnConnectionRoute -ConnectionName "Azure Stack POC" -DestinationPrefix 192.168.100.0/24 -RouteMetric 2 -PassThru
 		Add-VpnConnectionRoute -ConnectionName "Azure Stack POC" -DestinationPrefix 192.168.133.0/24 -RouteMetric 2 -PassThru
 
-5.  Log in to the VPN connection with the local account you created earlier.
+5.  Log in to the VPN connection with the account "administrator" or other local account you created earlier.
 
 	![](media/azure-stack-enable-multiple-concurrent-users/image2.png)
 
